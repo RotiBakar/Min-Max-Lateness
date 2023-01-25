@@ -1,0 +1,75 @@
+import numpy as np
+from random import randint
+processingTime = [[120,100],[120,100],[130,120],[130,120],[140,145],[140,145],[150,180],[150,180],[160,120],[160,120],[45,150],[45,150]]
+
+#populate schedule, 20 items scheduled, 2 columns for  (1) part scheduled and (2) due date
+demand = np.ones((20,2),dtype='int')
+partsDue = [0,0,0,0]
+k=0
+j=0
+finalSc = np.ones((1,2),dtype='int')
+
+#col 0 is random part 0-11 (12 total)
+#col 1 is random due date 1-3 days from today
+for i in range(len(demand)): 
+  demand[i][0] = randint(0, 11)
+  demand[i][1] = randint(1, 3)
+  partsDue[demand[i][1]] = partsDue[demand[i][1]] + 1
+
+print("Demand ")
+print(demand)
+print("parts due each day ",partsDue)
+#according to the vid, to min max lateness, we order tasks by sorting by the deadline regardless of task duration. 
+schedule = np.array(demand)
+r = np.core.records.fromarrays([demand[:,1],demand[:,0]],names='day,part')
+schedule = demand[r.argsort()]
+
+#select schedule for each day
+for i in range(3):
+  schedule1 = np.array(schedule[k+partsDue[i]:j+partsDue[i+1]])
+  r = np.core.records.fromarrays([schedule1[:,1],schedule1[:,0]],names='day,part')
+  schedule1 = schedule1[r.argsort()]
+  k=k+partsDue[i]
+  j=j+partsDue[i+1]
+  #invert schedule for even days
+  if i % 2:
+    schedule1 = np.sort(schedule1,axis=0)[::-1,:]
+  #append inverted or non-inverted schedule to final schedule
+  finalSc = np.append(finalSc,schedule1,axis=0)
+#remove first row in final schedule array which was used to initialize the array
+finalSc = np.delete(finalSc, 0 , axis=0)
+print("Initial Schedule")
+print(finalSc)
+
+#time now
+time = 0
+day = 0
+timeInWorkday = 1000 #true workday is 1200 min, so if part with 180 min is last to run, we go into overtime
+lateness=0
+
+#calculating time
+#going down the sorted schedule 
+for i in range(len(finalSc)): 
+#for first part of the day, we setup and run
+  if i== 0:
+    time = time + processingTime[finalSc[i][0]][0]+ processingTime[finalSc[i][0]][1]
+#for all other parts check to see if we need to setup    
+  else:
+    #parts are the same, just add runtime
+    if finalSc[i-1][0]==finalSc[i][0]:
+      time = time + processingTime[finalSc[i][0]][1]
+    #parts are different, we setup and run
+    else:
+      time = time + processingTime[finalSc[i][0]][0]+ processingTime[finalSc[i][0]][1]
+  #if the day is on or after the due date, we gain lateness
+  if day - finalSc[i][1] >= 0:
+    lateness = lateness + (day - finalSc[i][1] )
+  finalSc[i][1] = day
+  #when the time reaches/surpasses time in workday, we reset the time and move to the next day    
+  if time>= timeInWorkday:
+    time = 0
+    day=day+1
+  
+print("FINAL SCHEDULE")
+print(finalSc)
+print('lateness =',lateness)
